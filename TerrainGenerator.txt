@@ -1,0 +1,215 @@
+﻿using UnityEngine;
+using System.Collections;
+using System.Linq; // used for Sum of array
+using System.Collections.Generic;
+
+public class TerrainGenerator : MonoBehaviour
+{
+    public GameObject tree;
+    float Threshold = 0.8f;
+    float Variation = 0.1f;
+
+    public void Start()
+    {
+        deleteDetails();
+        ApplyTextures();
+
+    }
+
+
+    public void deleteDetails()
+    {
+        Terrain terrain = GetComponent<Terrain>();
+
+        TerrainData terrainData = terrain.terrainData;
+
+        // Get all of layer zero.
+        int[,] map = terrainData.GetDetailLayer(0, 0, terrainData.detailWidth, terrainData.detailHeight, 0);
+
+        // For each pixel in the detail map...
+        for (int y = 0; y < terrainData.detailHeight; y++)
+        {
+            for (int x = 0; x < terrainData.detailWidth; x++)
+            {
+                map[x, y] = 0;
+            }
+        }
+
+        // Assign the modified map back.
+        terrainData.SetDetailLayer(0, 0, 0, map);
+        terrainData.SetDetailLayer(0, 0, 1, map);
+        terrainData.SetDetailLayer(0, 0, 2, map);
+        terrainData.SetDetailLayer(0, 0, 3, map);
+    }
+
+    public void ApplyTextures()
+    {
+        
+        // Get the attached terrain component
+        Terrain terrain = GetComponent<Terrain>();
+
+        // Get a reference to the terrain data
+        TerrainData terrainData = terrain.terrainData;
+
+        // Splatmap data is stored internally as a 3d array of floats, so declare a new empty array ready for your custom splatmap data:
+        float[,,] splatmapData = new float[terrainData.alphamapWidth, terrainData.alphamapHeight, terrainData.alphamapLayers];
+
+        int[,] grass = terrainData.GetDetailLayer(0, 0, terrainData.detailWidth, terrainData.detailHeight, 0);
+        int[,] stones1 = terrainData.GetDetailLayer(0, 0, terrainData.detailWidth, terrainData.detailHeight, 1);
+        int[,] stones2 = terrainData.GetDetailLayer(0, 0, terrainData.detailWidth, terrainData.detailHeight, 2);
+        int[,] stones3 = terrainData.GetDetailLayer(0, 0, terrainData.detailWidth, terrainData.detailHeight, 3);
+        ArrayList instances = new ArrayList();
+
+        int index = 0;
+        int trees = 0;
+
+
+        for (int y = 0; y < terrainData.alphamapHeight; y++)
+        {
+            for (int x = 0; x < terrainData.alphamapWidth; x++)
+            {
+                // Normalise x/y coordinates to range 0-1 
+                float y_01 = (float)y / (float)terrainData.alphamapHeight;
+                float x_01 = (float)x / (float)terrainData.alphamapWidth;
+
+                // Sample the height at this location (note GetHeight expects int coordinates corresponding to locations in the heightmap array)
+                float height = terrainData.GetHeight(Mathf.RoundToInt(y_01 * terrainData.heightmapHeight), Mathf.RoundToInt(x_01 * terrainData.heightmapWidth));
+
+                // Calculate the normal of the terrain (note this is in normalised coordinates relative to the overall terrain dimensions)
+                Vector3 normal = terrainData.GetInterpolatedNormal(y_01, x_01);
+
+                // Calculate the steepness of the terrain
+                float steepness = terrainData.GetSteepness(y_01, x_01);
+
+                // Setup an array to record the mix of texture weights at this point
+                float[] splatWeights = new float[terrainData.alphamapLayers];
+
+                // CHANGE THE RULES BELOW TO SET THE WEIGHTS OF EACH TEXTURE ON WHATEVER RULES YOU WANT
+
+                //sand
+                if (height < 40)
+                {
+                    splatWeights[0] = 1.0f - Mathf.Clamp01(steepness * steepness / (terrainData.heightmapHeight / 0.1f));
+
+                    float ston2 = Random.Range(0, 10);
+
+                    if (ston2 < 8)
+                    {
+                        stones2[x, y] = 0;
+                    }
+                    else if (ston2 > 8)
+                    {
+                        if (steepness < 30f)
+                        {
+                            stones2[x, y] = 1;
+                        }
+                    }
+                }
+
+                //grass          
+                if (height > 50 && height < 130)
+                {
+                    splatWeights[2] = 1.0f - Mathf.Clamp01(steepness * steepness / (terrainData.heightmapHeight / 0.2f));
+
+                    if (steepness < 50f)
+                    {
+                        grass[x, y] = Random.Range(5, 8);
+                    }
+                        if (steepness < 20f)
+                        {
+                            // place a tree
+                            trees++;
+
+                            TreeInstance instance = new TreeInstance();
+                            // float xpos = (float)x + 0.001f / (float)x_01; float ypos = (float)y + 0.001f/ (float)y_01;
+
+                            instance.position = new Vector3(x / x_01, terrainData.GetHeight((int)x, (int)y) / 200, y / y_01);
+
+                            instance.color = Color.white;
+                            instance.lightmapColor = Color.white;
+                            instance.prototypeIndex = index;
+
+                            instance.widthScale = 1.0f + Random.Range(-Variation, Variation);
+                            instance.heightScale = 1.0f + Random.Range(-Variation, Variation);
+
+                            instances.Add(instance);
+                        
+                        }
+
+                }
+
+                //dirt
+                if (height > 30 && height < 100)
+                {
+                    splatWeights[1] = 1.0f - Mathf.Clamp01(steepness * steepness / (terrainData.heightmapHeight / 0.4f));
+                    float ston1 = Random.Range(0, 10);
+
+                    if (ston1 < 6)
+                    {
+                        stones1[x, y] = 0;
+                    }
+                    else if (ston1 > 6)
+                    {
+                        if (steepness < 25f)
+                        {
+                            stones1[x, y] = 1;
+                        }
+                    }
+                }
+
+                //stone
+                if (height > 130)
+                {
+
+                    splatWeights[3] = 1.0f - Mathf.Clamp01(steepness * steepness / (terrainData.heightmapHeight / 0.3f));
+                    float ston3 = Random.Range(0, 10);
+
+                    if (ston3 < 5)
+                    {
+                        stones3[x, y] = 0;
+                    }
+                    else if (ston3 > 5)
+                    {
+                        if (steepness < 20f)
+                        {
+                            stones3[x, y] = 1;
+                        }
+                    }
+                    //stones3[x, y] = Random.Range(0, 3);
+                }
+                 
+                splatWeights[3] = 0.001f;
+               
+
+                // Sum of all textures weights must add to 1, so calculate normalization factor from sum of weights
+                float z = splatWeights.Sum();
+
+                // Loop through each terrain texture
+                for (int i = 0; i < terrainData.alphamapLayers; i++)
+                {
+
+                    // Normalize so that sum of all texture weights = 1
+                    splatWeights[i] /= z;
+
+                    // Assign this point to the splatmap array
+                    splatmapData[x, y, i] = splatWeights[i];
+                }
+            }
+        }
+
+        // Finally assign the new splatmap to the terrainData:
+
+        terrainData.SetAlphamaps(0, 0, splatmapData);
+        terrainData.SetDetailLayer(0, 0, 0, grass);
+        terrainData.SetDetailLayer(0, 0, 1, stones1);
+        terrainData.SetDetailLayer(0, 0, 2, stones2);
+        terrainData.SetDetailLayer(0, 0, 3, stones3);
+
+        
+
+        terrainData.treeInstances = (TreeInstance[])instances.ToArray(typeof(TreeInstance));
+        //      data.treeInstances = (TreeInstance[])instances.ToArray(typeof(TreeInstance));
+        terrain.Flush();
+        Debug.Log("placed " + trees + " trees");
+    }
+}

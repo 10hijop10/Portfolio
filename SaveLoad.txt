@@ -1,0 +1,42 @@
+﻿using UnityEngine;
+using System.Collections;
+using System;
+
+public class SaveLoad : MonoBehaviour
+{
+
+    public MyClass myObject = new MyClass();
+    string json;
+    public int highscore;
+    // Use this for initialization
+
+    void Awake()
+    {
+        DontDestroyOnLoad(transform.gameObject);
+    }
+    public void Save ()
+    {
+        if (highscore > myObject.HighScore)
+        {
+            myObject.HighScore = highscore;
+            json = JsonUtility.ToJson(myObject);
+            PlayerPrefs.SetString("Save",json);
+        }
+        else
+            return;
+    }
+	
+	public void Load ()
+    {
+        json = PlayerPrefs.GetString("Save");
+        myObject = JsonUtility.FromJson<MyClass>(json);
+    }
+}
+
+[Serializable]
+public class MyClass
+{
+    public int HighScore;
+    public string playerName;
+}
+

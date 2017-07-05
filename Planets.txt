@@ -1,0 +1,63 @@
+﻿using System.Collections;
+using UnityEngine;
+
+public class Planets : MonoBehaviour {
+
+    public GameObject[] asteroids;
+    public int Xsize;
+    public int Ysize;
+    public int Zsize;
+    private GameObject AsteroidField;
+    public Vector3 astroidFieldStart;
+    public int spawnChance;
+
+    // Use this for initialization
+    void Start ()
+    {
+        GenerateAstroidField();
+	}
+	
+	// Update is called once per frame
+	public void GenerateAstroidField ()
+    {
+        if (GameObject.Find("AsteroidField"))
+        {
+            DestroyImmediate(AsteroidField);
+        }
+            AsteroidField = new GameObject("AsteroidField");
+
+
+        
+        for (int x = 0; x < Xsize; x += 10)
+        {
+            for (int y = 0; y < Ysize; y += 10)
+            {
+                for (int z = 0; z < Zsize; z += 10)
+                {
+                    int SpawnChance = Random.Range(0, spawnChance);
+                    if (SpawnChance < 1)
+                    {
+                        int PickAstroid = Random.Range(0, 10);
+                        if (PickAstroid < 5)
+                        {
+                            GameObject Asteroid1 = Instantiate(asteroids[0], new Vector3(x, y, z), transform.rotation);
+                            Asteroid1.GetComponent<Rigidbody>().AddForce(new Vector3(Random.Range(0, 1000), Random.Range(0, 1000), Random.Range(0, 1000)));
+                            Asteroid1.transform.rotation = Random.rotation;
+                            Asteroid1.transform.SetParent(AsteroidField.transform);
+                        }
+                        else
+                        {
+                            GameObject Asteroid2 = Instantiate(asteroids[1], new Vector3(x, y, z), transform.rotation);
+                            Asteroid2.GetComponent<Rigidbody>().AddForce(new Vector3(Random.Range(0, 1000), Random.Range(0, 1000), Random.Range(0, 1000)));
+                            Asteroid2.transform.rotation = Random.rotation;
+                            Asteroid2.transform.SetParent(AsteroidField.transform);
+                        }
+                    }
+                }
+            }
+        }
+
+
+
+    }
+}
